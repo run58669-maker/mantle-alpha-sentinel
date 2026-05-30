@@ -1,10 +1,12 @@
-"""LLM risk/compliance note layer — turns a FlowAnomaly into a short alert a
-stablecoin-remittance compliance/ops desk can act on.
+"""LLM risk note layer — turns a detected event into a short alert the MXNB
+ISSUER's treasury/risk desk can act on (issuer co-pilot framing, not third-party
+surveillance).
 
 Reuses ResilientLLM (retry → breaker → fallback: TFY 70b → TFY 8b → raw Groq).
-Strict prompt: the model may only restate numbers/addresses present in the
-input — the detection logic is real; the LLM only *explains* it (no thin
-wrapper). Falls back to a deterministic rule-based note if no LLM is configured.
+The client is built ONCE and shared, so the circuit breaker / scorecard persist
+across alerts (this is the resilience story — it must be a singleton, not rebuilt
+per call). Strict prompt: the model may only restate figures present in the
+input — detection is real, the LLM only explains it.
 """
 from __future__ import annotations
 
@@ -22,6 +24,10 @@ GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 TFY_URL = os.environ.get("TFY_GATEWAY_URL", "https://gateway.truefoundry.ai")
 TFY_KEY = os.environ.get("TFY_API_KEY", "")
 
+_SCORECARD = Scorecard()
+_CLIENT: ResilientLLM | None = None
+_CLIENT_INIT = False
+
 
 def build_targets() -> list[Target]:
     targets: list[Target] = []
@@ -36,51 +42,70 @@ def build_targets() -> list[Target]:
     return targets
 
 
-SYSTEM_PROMPT = textwrap.dedent("""\
-    You are a stablecoin-payments RISK & AML analyst for a LATAM remittance
-    desk (context: Bitso / Juno, MXNB — the Mexican-peso stablecoin on
-    Arbitrum). For each on-chain flow anomaly, write a short alert a
-    compliance/ops officer can act on. Output EXACTLY these four lines, no more:
+def get_client() -> ResilientLLM | None:
+    """Single shared client so breaker + scorecard persist across all alerts."""
+    global _CLIENT, _CLIENT_INIT
+    if not _CLIENT_INIT:
+        _CLIENT_INIT = True
+        targets = build_targets()
+        _CLIENT = ResilientLLM(targets, scorecard=_SCORECARD) if targets else None
+    return _CLIENT
 
-    SIGNAL — name the pattern in AML terms (layering/structuring/smurfing,
-      mule disbursal / fan-out, large settlement) and restate the key figures
-      VERBATIM from the input (token, amount, hop count or #recipients).
-    WHY — one sentence on the remittance/payments risk it implies, using ONLY
-      what's in the input (e.g. structuring to dodge reporting thresholds,
-      mule-network disbursal, large corridor settlement).
+
+def scorecard() -> Scorecard:
+    return _SCORECARD
+
+
+SYSTEM_PROMPT = textwrap.dedent("""\
+    You are a treasury & risk co-pilot for the ISSUER of MXNB — the Mexican-peso
+    stablecoin minted by Juno (a Bitso company) on Arbitrum. You watch your OWN
+    token's on-chain health and write one short alert the treasury/risk desk can
+    act on. Output EXACTLY these four lines, nothing else:
+
+    SIGNAL — name the event (new issuance / large mint, redemption / burn, net
+      supply swing, large circulation transfer, holder concentration) and
+      restate the key figures VERBATIM from the input (amount, token, net supply
+      change, recipient/holder).
+    WHY — one sentence on the issuer/treasury risk it implies, using ONLY the
+      input (e.g. redemption pressure / reserve drawdown, mint outpacing demand,
+      concentration / liquidity risk, peg stress).
     CONFIDENCE — one of: flag / high signal / critical. Justify in <= 10 words.
-    ACTION — one concrete desk step (e.g. add addresses to review queue,
-      manual KYC, monitor corridor).
+    ACTION — one concrete treasury-desk step (e.g. verify reserve coverage,
+      contact counterparty, monitor peg, pre-position liquidity).
 
     HARD RULES: use ONLY numbers and addresses that appear in the input. Never
-    invent counterparties, amounts, timeframes, or token names. No emojis.
-    Institutional tone. If the input is sparse, CONFIDENCE must be
-    "flag — sparse input".
+    invent figures, counterparties, timeframes, or token names. No emojis.
+    Institutional tone. If input is sparse, CONFIDENCE = "flag — sparse input".
 """)
 
 
 def _fallback_note(a: FlowAnomaly) -> str:
-    """Deterministic note if no LLM target is configured — still useful."""
-    aml = {"layering": "layering / structuring (equal-amount relay chain)",
-           "fan_out": "mule disbursal / fan-out (one sender → many recipients)",
-           "large_transfer": "large settlement transfer"}.get(a.kind, a.kind)
-    return (f"SIGNAL — {aml}: {a.detail}\n"
-            f"WHY — {a.symbol} flow pattern consistent with {aml}; review against remittance/AML policy.\n"
+    label = {
+        "large_mint": "new issuance / large mint",
+        "large_redemption": "redemption / burn",
+        "supply_swing": "net supply swing",
+        "large_circulation": "large circulation transfer",
+        "concentration": "holder concentration",
+        "layering": "suspicious equal-amount relay (circulation)",
+        "fan_out": "one-to-many disbursal (circulation)",
+        "large_transfer": "large transfer",
+    }.get(a.kind, a.kind)
+    return (f"SIGNAL — {label}: {a.detail}\n"
+            f"WHY — {a.symbol} treasury signal; review against issuance/reserve policy.\n"
             f"CONFIDENCE — {a.severity}\n"
-            f"ACTION — add involved addresses to the compliance review queue.")
+            f"ACTION — verify reserve coverage and log for the treasury desk.")
 
 
-def write_note(a: FlowAnomaly, scorecard: Scorecard | None = None) -> tuple[str, dict]:
-    targets = build_targets()
-    if not targets:
+def write_note(a: FlowAnomaly) -> tuple[str, dict]:
+    client = get_client()
+    if client is None:
         return _fallback_note(a), {"ok": True, "via": "rule-template"}
-    client = ResilientLLM(targets, scorecard=scorecard)
     user_msg = textwrap.dedent(f"""\
-        Token: {a.symbol} (Arbitrum)
-        Detected pattern: {a.kind}
+        Token: {a.symbol} (Arbitrum, issuer = Juno/Bitso)
+        Event: {a.kind}
         Detector severity: {a.severity}
-        Total amount involved: {a.amount:,.2f} {a.symbol}
-        Addresses involved ({len(a.addrs)}): {', '.join(a.addrs[:8])}
+        Amount involved: {a.amount:,.2f} {a.symbol}
+        Addresses ({len(a.addrs)}): {', '.join(a.addrs[:8])}
         Detail: {a.detail}
     """)
     resp, rec = client.chat(
@@ -92,19 +117,3 @@ def write_note(a: FlowAnomaly, scorecard: Scorecard | None = None) -> tuple[str,
         return _fallback_note(a), {"ok": False, "via": "rule-template (LLM chain exhausted)"}
     return resp.choices[0].message.content.strip(), {
         "ok": True, "via": rec.final_target, "latency_ms": rec.user_latency_ms}
-
-
-if __name__ == "__main__":
-    # Smoke test on the real 200-MXNB relay anomaly shape.
-    demo = FlowAnomaly(
-        kind="layering", symbol="MXNB", severity="critical",
-        detail="relay chain ×3 of ~200.00 MXNB (structuring/layering): "
-               "0x000000… → 0x975e20… → 0xd63bba… → 0x58b704…",
-        addrs=["0x0000000000000000000000000000000000000000",
-               "0x975e20f3", "0xd63bba23", "0x58b70406"],
-        amount=200.0,
-    )
-    note, meta = write_note(demo)
-    print("=== compliance note ===")
-    print(note)
-    print("\nmeta:", meta)

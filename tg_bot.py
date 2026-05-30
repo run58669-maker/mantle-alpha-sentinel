@@ -16,10 +16,10 @@ from typing import Optional
 import httpx
 
 
-# Default token + chat_id sourced from the existing telegram channel config.
-# Can be overridden via env (.env in this repo).
-DEFAULT_TOKEN = "***REVOKED***"
-DEFAULT_CHAT_ID = "8663622105"
+# Credentials come from env only — NEVER hard-code a live token (public repo).
+# Create a bot via @BotFather, then set TG_BOT_TOKEN / TG_CHAT_ID in .env.
+DEFAULT_TOKEN = ""
+DEFAULT_CHAT_ID = ""
 
 
 @dataclass
@@ -57,7 +57,7 @@ class TGBot:
         interpretation: str = "",
     ) -> tuple[bool, str]:
         text = (
-            f"🛰 <b>Mantle Sentinel</b>  ·  <i>{kind}</i>\n\n"
+            f"🛰 <b>MXNB Treasury Sentinel</b>  ·  <i>{kind}</i>\n\n"
             f"<b>Wallet:</b> <code>{wallet_addr}</code>\n"
             f"<b>Tag:</b> {wallet_tag}\n\n"
             f"<b>Detail:</b>\n{details}\n"

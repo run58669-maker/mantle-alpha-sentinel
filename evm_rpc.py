@@ -1,9 +1,8 @@
-"""Mantle JSON-RPC client with built-in fallback chain.
+"""Resilient EVM JSON-RPC client (Arbitrum) with a built-in fallback chain.
 
-Reuses the same retry → breaker → fallback primitives as ResilientLLM —
-applied to RPC endpoints instead of LLM endpoints. If the primary Mantle
-RPC browns out, we fall back to a secondary, and eventually to a third.
-This is the "MCP server starts erroring out" answer applied to RPC.
+Retry → circuit-breaker → fallback across multiple RPC endpoints: if the
+primary public node browns out we fall through to a secondary and then a
+third, so a single flaky endpoint never takes the monitor down.
 """
 from __future__ import annotations
 
@@ -17,7 +16,7 @@ import httpx
 
 from resilient_llm import AttemptRecord, CallRecord, Scorecard, _Breaker
 
-log = logging.getLogger("mantle_rpc")
+log = logging.getLogger("evm_rpc")
 
 
 @dataclass
@@ -32,9 +31,9 @@ class RPCTarget:
 
 
 DEFAULT_TARGETS = [
-    RPCTarget(name="mantle-public",  url="https://rpc.mantle.xyz"),
-    RPCTarget(name="mantle-ankr",    url="https://rpc.ankr.com/mantle"),
-    RPCTarget(name="mantle-publicnode", url="https://mantle-rpc.publicnode.com"),
+    RPCTarget(name="arb-public", url="https://arb1.arbitrum.io/rpc"),
+    RPCTarget(name="arb-ankr", url="https://rpc.ankr.com/arbitrum"),
+    RPCTarget(name="arb-publicnode", url="https://arbitrum-one-rpc.publicnode.com"),
 ]
 
 
@@ -135,9 +134,7 @@ class ResilientRPC:
         return self.call("eth_getBlockByNumber", [hex(block_num), with_txs])
 
 
-# === ERC-20 / WMNT helpers ================================================== #
-
-WMNT_ADDRESS = "0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8"  # canonical wrapped MNT
+# === ERC-20 helpers ========================================================= #
 
 # keccak256("Transfer(address,address,uint256)")
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"

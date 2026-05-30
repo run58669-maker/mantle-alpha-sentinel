@@ -1,6 +1,6 @@
 """Resilient LLM client wrapping multiple providers behind a single call.
 
-Built for the DevNetwork "Resilient Agents" hackathon track.
+A small, framework-agnostic resilience wrapper for OpenAI-compatible endpoints.
 
 Layers (outermost first):
     fallback_chain  → try targets in order, switch on failure or breaker open
