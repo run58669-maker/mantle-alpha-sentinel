@@ -142,11 +142,30 @@ def detect_layering(transfers: list[Transfer], min_hops: int = 3, tol: float = 0
     return list(seen_paths.values())
 
 
-def scan_window(rpc: ResilientRPC, token: dict, from_block: int, to_block: int) -> tuple[list[Transfer], list[FlowAnomaly]]:
+# Addresses touching >= this many transfers in the window are treated as
+# infrastructure (DEX routers, aggregators, CEX hot wallets, pools) rather
+# than end-user wallets, and are excluded from mule/structuring detection.
+# Data-driven so we don't hard-code (and risk mis-typing) specific addresses.
+HUB_MIN_DEGREE = 8
+
+
+def hub_addresses(transfers: list[Transfer], min_degree: int = HUB_MIN_DEGREE) -> set[str]:
+    deg: dict[str, int] = {}
+    for t in transfers:
+        deg[t.frm] = deg.get(t.frm, 0) + 1
+        deg[t.to] = deg.get(t.to, 0) + 1
+    return {a for a, d in deg.items() if d >= min_degree}
+
+
+def scan_window(rpc: ResilientRPC, token: dict, from_block: int, to_block: int
+                ) -> tuple[list[Transfer], list[FlowAnomaly], set[str]]:
     transfers = fetch_transfers(rpc, token, from_block, to_block)
+    hubs = hub_addresses(transfers)
+    # mule/structuring signals only make sense between non-infra wallets
+    eoa = [t for t in transfers if t.frm not in hubs and t.to not in hubs]
     anomalies = (
-        detect_large(transfers, token["large_threshold"])
-        + detect_fan_out(transfers)
-        + detect_layering(transfers)
+        detect_large(transfers, token["large_threshold"])   # large = large, keep all
+        + detect_fan_out(eoa)
+        + detect_layering(eoa)
     )
-    return transfers, anomalies
+    return transfers, anomalies, hubs
