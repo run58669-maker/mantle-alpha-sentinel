@@ -12,6 +12,7 @@ at Arbitrum public endpoints. The LLM/Telegram layers are wired in separately.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -54,8 +55,16 @@ def arbitrum_rpc() -> ResilientRPC:
     return ResilientRPC(targets=ARBITRUM_TARGETS)
 
 
-def fetch_transfers(rpc: ResilientRPC, token: dict, from_block: int, to_block: int) -> list[Transfer]:
+def fetch_transfers(rpc: ResilientRPC, token: dict, from_block: int, to_block: int,
+                    _depth: int = 0) -> list[Transfer]:
     logs, _ = rpc.logs(from_block, to_block, address=token["address"], topics=[TRANSFER_TOPIC])
+    # public RPCs cap eth_getLogs by result count / range and return an error
+    # (logs=None). Don't silently drop them — bisect the window and recurse.
+    if logs is None and (to_block - from_block) > 1 and _depth < 12:
+        mid = (from_block + to_block) // 2
+        left = fetch_transfers(rpc, token, from_block, mid, _depth + 1)
+        time.sleep(0.12)  # gentle pacing — free public RPCs rate-limit bursts of eth_getLogs
+        return left + fetch_transfers(rpc, token, mid + 1, to_block, _depth + 1)
     out: list[Transfer] = []
     if not logs:
         return out
@@ -123,8 +132,10 @@ def detect_layering(transfers: list[Transfer], min_hops: int = 3, tol: float = 0
         cur = start
         visited = {cur.frm}
         while len(chain) < 10:
-            nxts = [x for x in by_from.get(cur.to, [])
-                    if abs(x.amount - cur.amount) <= cur.amount * tol and x.to not in visited]
+            nxts = sorted(
+                [x for x in by_from.get(cur.to, [])
+                 if abs(x.amount - cur.amount) <= cur.amount * tol and x.to not in visited],
+                key=lambda x: x.block)  # deterministic across RPCs / log order
             if not nxts:
                 break
             cur = nxts[0]
@@ -132,7 +143,7 @@ def detect_layering(transfers: list[Transfer], min_hops: int = 3, tol: float = 0
             visited.add(cur.frm)
         if len(chain) >= min_hops:
             path = " → ".join([chain[0].frm[:8] + "…"] + [c.to[:8] + "…" for c in chain])
-            key = f"{chain[0].frm}->{chain[-1].to}:{len(chain)}"
+            key = frozenset([c.frm for c in chain] + [chain[-1].to])  # merge overlapping sub-chains
             seen_paths[key] = FlowAnomaly(
                 "layering", start.symbol, "critical",
                 f"relay chain ×{len(chain)} of ~{start.amount:,.2f} {start.symbol} "
