@@ -9,3 +9,4 @@ venv/
 %SystemDrive%/
 *.log
 python_install_*.log
+build/
