@@ -43,7 +43,9 @@ Each tick, over Arbitrum:
 Both the RPC and the LLM run behind a **retry → circuit-breaker → fallback
 chain** (3 Arbitrum endpoints; LLM: TrueFoundry 70b → 8b → raw Groq). Every run
 prints a quantitative **scorecard** (success rate, p50/p95 latency, fallback
-rate) so the resilience is *shown*, not claimed.
+rate, MTTR) so the resilience is *shown*, not claimed — run `python chaos.py` to force a
+primary-provider outage and watch the chain recover (request still succeeds, fallback
+rate 100%, MTTR ~1s).
 
 ## Quickstart (judges: one command)
 
@@ -53,6 +55,7 @@ cp .env.example .env        # optional: add an LLM key (GROQ_API_KEY or TFY_*).
                             # No key? It falls back to a deterministic note.
 python sentinel.py --demo   # replays a REAL on-chain MXNB mint + relay window
 python sentinel.py --once   # one live pass over the basket
+python chaos.py             # kill the primary LLM mid-call → watch the fallback chain recover
 ```
 
 ### `--demo` output (real Arbitrum data)

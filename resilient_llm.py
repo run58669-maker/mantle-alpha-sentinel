@@ -224,7 +224,7 @@ class ResilientLLM:
         # max_retries=0 turns OFF the OpenAI SDK's built-in retry layer so our
         # ResilientLLM is the *only* control plane. Otherwise SDK retries + our
         # retries stack: one request becomes 2 (SDK) × (max_retries+1) (ours)
-        # attempts and the latency in demo.py wouldn't reflect what an operator
+        # attempts and the measured latency wouldn't reflect what an operator
         # would see in production.
         self._clients: dict[str, OpenAI] = {
             t.name: OpenAI(base_url=t.base_url, api_key=t.api_key, max_retries=0)

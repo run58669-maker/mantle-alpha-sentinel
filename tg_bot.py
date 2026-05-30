@@ -1,10 +1,8 @@
 """Telegram bot wrapper for Sentinel alerts.
 
-Reuses the bot token already registered for the Claude Code Telegram
-channel (so 小Q doesn't need to /newbot). Outbound-only — Sentinel posts
-alerts to her chat_id via Telegram Bot API over HTTPS. The Claude Code
-Telegram MCP plugin (inbound) is *not* used here; this script talks to
-api.telegram.org directly.
+Outbound-only: posts treasury alerts to a chat_id via the Telegram Bot API
+over HTTPS. Create a bot with @BotFather and set TG_BOT_TOKEN / TG_CHAT_ID
+in .env.
 """
 from __future__ import annotations
 
@@ -71,19 +69,18 @@ class TGBot:
 if __name__ == "__main__":
     bot = TGBot()
     ok, info = bot.send_alert(
-        wallet_tag="whale-1",
-        wallet_addr="0xf22943d05ab93f63b0a229b12f4425e72a4c1f1c",
-        kind="large_outflow",
+        wallet_tag="MXNB large_mint",
+        wallet_addr="0x975e20f3...",
+        kind="large_mint",
         details=(
-            "Balance dropped <b>100,000,006.24 → 99,500,000.00 MNT</b>\n"
-            "Δ = <b>-500,006.24 MNT</b> (~$300k USD est.)\n"
-            "tx_count: 2 → 3 (single tx)\n"
-            "Block: 95,420,263"
+            "+200.00 MXNB minted to <code>0x975e20f3…</code>\n"
+            "net supply Δ this window: <b>+200.00 MXNB</b>"
         ),
         interpretation=(
-            "First outflow from this $100M wallet since funding. Size is moderate "
-            "relative to balance (0.5%) but breaks 100% dormancy. Likely OTC "
-            "settlement or first-leg of a position. Worth flagging — not panic."
+            "SIGNAL — new issuance of 200.00 MXNB.\n"
+            "WHY — mint outpacing redemptions; watch reserve coverage.\n"
+            "CONFIDENCE — high signal.\n"
+            "ACTION — verify 1:1 reserve backing for the new issuance."
         ),
     )
     print(f"send_alert -> ok={ok}  info={info}")

@@ -1,13 +1,13 @@
-"""Stablecoin flow monitor + risk detector — Arbitrum (MXNB / USDC / USDT).
+"""Stablecoin flow detector — Arbitrum USD corridor (USDC / USDT) context.
 
-Pulls ERC-20 Transfer logs over a block window and flags payments/AML-style
-risk signals for a remittance desk:
+Pulls ERC-20 Transfer logs over a block window and flags circulation signals:
   - large_transfer : single transfer >= per-token threshold
-  - fan_out        : one sender -> many recipients in the window (mule/disbursal)
-  - layering       : equal-amount relay chain A->B->C... (structuring/peeling)
+  - fan_out        : one sender -> many recipients (disbursal pattern)
+  - layering       : equal-amount relay chain A->B->C... (structuring pattern)
 
-Reuses the resilient RPC (retry -> breaker -> fallback) from evm_rpc, pointed
-at Arbitrum public endpoints. The LLM/Telegram layers are wired in separately.
+This is corridor *context* around MXNB; MXNB's own issuer/treasury signals
+live in treasury.py. Reuses the resilient RPC (retry -> breaker -> fallback)
+from evm_rpc, pointed at Arbitrum public endpoints.
 """
 from __future__ import annotations
 
