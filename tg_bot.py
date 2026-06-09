@@ -1,11 +1,12 @@
-"""Telegram bot wrapper for Sentinel alerts.
+"""Telegram bot wrapper for Mantle Alpha Sentinel alerts.
 
-Outbound-only: posts treasury alerts to a chat_id via the Telegram Bot API
+Outbound-only: posts alpha alerts to a chat_id via the Telegram Bot API
 over HTTPS. Create a bot with @BotFather and set TG_BOT_TOKEN / TG_CHAT_ID
 in .env.
 """
 from __future__ import annotations
 
+import html
 import os
 import time
 from dataclasses import dataclass
@@ -54,14 +55,15 @@ class TGBot:
         details: str,
         interpretation: str = "",
     ) -> tuple[bool, str]:
+        esc = html.escape
         text = (
-            f"🛰 <b>MXNB Treasury Sentinel</b>  ·  <i>{kind}</i>\n\n"
-            f"<b>Wallet:</b> <code>{wallet_addr}</code>\n"
-            f"<b>Tag:</b> {wallet_tag}\n\n"
-            f"<b>Detail:</b>\n{details}\n"
+            f"🛰 <b>Mantle Alpha Sentinel</b>  ·  <i>{esc(kind)}</i>\n\n"
+            f"<b>Wallet:</b> <code>{esc(wallet_addr)}</code>\n"
+            f"<b>Tag:</b> {esc(wallet_tag)}\n\n"
+            f"<b>Detail:</b>\n{esc(details)}\n"
         )
         if interpretation:
-            text += f"\n<b>LLM read:</b>\n{interpretation}\n"
+            text += f"\n<b>LLM read:</b>\n{esc(interpretation)}\n"
         text += f"\n<i>at {time.strftime('%Y-%m-%d %H:%M:%S')}</i>"
         return self.send(text)
 
@@ -69,18 +71,15 @@ class TGBot:
 if __name__ == "__main__":
     bot = TGBot()
     ok, info = bot.send_alert(
-        wallet_tag="MXNB large_mint",
-        wallet_addr="0x975e20f3...",
-        kind="large_mint",
-        details=(
-            "+200.00 MXNB minted to <code>0x975e20f3…</code>\n"
-            "net supply Δ this window: <b>+200.00 MXNB</b>"
-        ),
+        wallet_tag="mETH large_transfer",
+        wallet_addr="0xcDA86A27...",
+        kind="large_transfer",
+        details="500.00 mETH  0xcDA86A27…→0x5bE26527…  (blk 12345678)",
         interpretation=(
-            "SIGNAL — new issuance of 200.00 MXNB.\n"
-            "WHY — mint outpacing redemptions; watch reserve coverage.\n"
+            "SIGNAL — whale movement of 500.00 mETH.\n"
+            "WHY — large mETH transfer suggests smart money repositioning.\n"
             "CONFIDENCE — high signal.\n"
-            "ACTION — verify 1:1 reserve backing for the new issuance."
+            "ACTION — monitor recipient wallet for further moves."
         ),
     )
     print(f"send_alert -> ok={ok}  info={info}")

@@ -1,12 +1,4 @@
+.env
 __pycache__/
 *.pyc
-.env
-state.json
-Python/
-venv/
-.venv/
-*.egg-info/
-%SystemDrive%/
-*.log
-python_install_*.log
 build/

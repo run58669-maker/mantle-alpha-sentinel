@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     targets = risk_note.build_targets()
     if len(targets) < 2:
-        print("Need ≥2 LLM targets to show fallback — set TFY_API_KEY and/or GROQ_API_KEY in .env.")
+        print("Need ≥2 LLM targets to show fallback — add a second DASHSCOPE target or extend build_targets().")
         raise SystemExit(1)
 
     primary = targets[0].name
@@ -55,8 +55,8 @@ if __name__ == "__main__":
     print(f"CHAOS: forcing primary target '{primary}' to fail — expect fallback to '{targets[1].name}'.\n")
 
     resp, rec = client.chat(
-        [{"role": "system", "content": "You are a stablecoin treasury risk co-pilot. Reply in one line."},
-         {"role": "user", "content": "Acknowledge: a 200.00 MXNB mint was detected."}],
+        [{"role": "system", "content": "You are an on-chain alpha analyst for Mantle L2. Reply in one line."},
+         {"role": "user", "content": "Acknowledge: a 500.00 mETH whale transfer was detected on Mantle."}],
         max_tokens=60, temperature=0,
     )
     print(f"recovered: ok={rec.ok}  served_by={rec.final_target}  fallback_jumps={rec.fallback_jumps}")

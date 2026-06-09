@@ -1,13 +1,12 @@
-"""Stablecoin flow detector — Arbitrum USD corridor (USDC / USDT) context.
+"""Mantle Alpha Sentinel — on-chain flow detector for Mantle L2.
 
-Pulls ERC-20 Transfer logs over a block window and flags circulation signals:
+Pulls ERC-20 Transfer logs over a block window and flags alpha signals:
   - large_transfer : single transfer >= per-token threshold
   - fan_out        : one sender -> many recipients (disbursal pattern)
   - layering       : equal-amount relay chain A->B->C... (structuring pattern)
 
-This is corridor *context* around MXNB; MXNB's own issuer/treasury signals
-live in treasury.py. Reuses the resilient RPC (retry -> breaker -> fallback)
-from evm_rpc, pointed at Arbitrum public endpoints.
+Monitors mETH, USDY, and USDC on Mantle for whale movements, smart money
+patterns, and anomalous flows.
 """
 from __future__ import annotations
 
@@ -21,11 +20,10 @@ from evm_rpc import ResilientRPC, RPCTarget, TRANSFER_TOPIC, topic_to_address
 ROOT = Path(__file__).parent
 TOKENS_FILE = ROOT / "tokens.json"
 
-ARBITRUM_TARGETS = [
-    RPCTarget(name="arb-public", url="https://arb1.arbitrum.io/rpc"),
-    RPCTarget(name="arb-ankr", url="https://rpc.ankr.com/arbitrum"),
-    RPCTarget(name="arb-publicnode", url="https://arbitrum-one-rpc.publicnode.com"),
-]
+def _build_targets() -> list[RPCTarget]:
+    cfg = load_tokens()
+    urls = cfg.get("rpc_urls", ["https://rpc.mantle.xyz"])
+    return [RPCTarget(name=f"mantle-{i}", url=u) for i, u in enumerate(urls)]
 
 
 @dataclass
@@ -51,8 +49,8 @@ def load_tokens() -> dict:
     return json.loads(TOKENS_FILE.read_text(encoding="utf-8"))
 
 
-def arbitrum_rpc() -> ResilientRPC:
-    return ResilientRPC(targets=ARBITRUM_TARGETS)
+def mantle_rpc() -> ResilientRPC:
+    return ResilientRPC(targets=_build_targets())
 
 
 def fetch_transfers(rpc: ResilientRPC, token: dict, from_block: int, to_block: int,

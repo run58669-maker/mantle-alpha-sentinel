@@ -1,4 +1,4 @@
-"""Resilient EVM JSON-RPC client (Arbitrum) with a built-in fallback chain.
+"""Resilient EVM JSON-RPC client (Mantle L2) with a built-in fallback chain.
 
 Retry → circuit-breaker → fallback across multiple RPC endpoints: if the
 primary public node browns out we fall through to a secondary and then a
@@ -31,9 +31,9 @@ class RPCTarget:
 
 
 DEFAULT_TARGETS = [
-    RPCTarget(name="arb-public", url="https://arb1.arbitrum.io/rpc"),
-    RPCTarget(name="arb-ankr", url="https://rpc.ankr.com/arbitrum"),
-    RPCTarget(name="arb-publicnode", url="https://arbitrum-one-rpc.publicnode.com"),
+    RPCTarget(name="mantle-public", url="https://rpc.mantle.xyz"),
+    RPCTarget(name="mantle-blast", url="https://mantle-mainnet.public.blastapi.io"),
+    RPCTarget(name="mantle-drpc", url="https://mantle.drpc.org"),
 ]
 
 

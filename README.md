@@ -1,113 +1,105 @@
-# MXNB Treasury Sentinel
+# Mantle Alpha Sentinel
 
-**An AI risk co-pilot for the *issuer* of a stablecoin.** Real-time, resilient,
-on-chain monitoring of **MXNB** — the Mexican-peso stablecoin minted by **Juno (a
-Bitso company)** on Arbitrum — plus the surrounding USD-stablecoin corridor.
+**AI-powered on-chain intelligence for the Mantle L2 ecosystem.** Real-time,
+resilient monitoring of **mETH**, **USDY**, and **USDC** flows on Mantle:
+whale movements, smart money patterns, fan-out disbursals, and layering chains.
+Anomalies get an AI-written alpha note via DeepSeek; alerts push to Telegram.
 
-> *Co-piloto de riesgo on-chain para el emisor de MXNB.*
-> Built for **Ethereum México 2026 · AI × Blockchain (w/ Bitso)**.
+> Built for **Mantle Turing Test Hackathon · Track 02: AI Alpha & Data**.
 
 ---
 
 ## Why
 
-A regulated stablecoin issuer already does KYC at the on/off-ramp. What it
-*doesn't* get for free is a **live, on-chain view of its own token's health**:
-how much is being minted vs redeemed, sudden supply swings, holder
-concentration, large settlement movements. That's a treasury & risk function —
-and it's exactly what this agent watches, in real time, with an LLM that turns
-each on-chain event into a short note the treasury desk can act on.
-
-It is **not** third-party AML surveillance of strangers' wallets. It's the
-issuer watching **its own** token.
+DeFi traders and risk desks need live, on-chain signal — not just price feeds.
+Who's moving large positions in Mantle's key assets? Is someone layering funds
+through relay chains? Did a whale just rotate out of mETH into USDC? These are
+alpha signals the market needs, and this agent watches them in real time with an
+LLM that turns each on-chain event into a short intelligence note.
 
 ## What it does
 
-Each tick, over Arbitrum:
+Each tick, over Mantle L2:
 
-- **MXNB (the issuer's token — the focus):**
-  - `mint` / `redemption` — every issuance and burn (for a young, growing peso
-    stablecoin, each one matters), via Transfer to/from the zero address
-  - `supply_swing` — net mint − redeem over the window
-  - `large_circulation` — outsized single transfers
-  - `concentration` — one address holding an outsized share of windowed volume
-- **USDC / USDT (corridor context):** transfer volume counts, so the desk sees
-  the broader USD↔peso corridor it operates in.
-- **LLM treasury note:** each notable event → a 4-line desk alert
-  (SIGNAL / WHY / CONFIDENCE / ACTION), framed in issuer/treasury terms
-  (reserve coverage, redemption pressure, peg stress). The model only restates
+- **mETH (Mantle Staked Ether):** whale transfers, accumulation/distribution
+- **USDY (Ondo RWA yield token):** large movements, smart money rotation
+- **USDC (bridged stablecoin):** high-volume corridor flows, liquidity migration
+- **Cross-token detection:**
+  - `large_transfer` — single transfer above per-token threshold
+  - `fan_out` — one sender → many recipients (disbursal / mule pattern)
+  - `layering` — equal-amount relay chain A→B→C (structuring / peeling)
+- **AI alpha note:** each notable event → a 4-line intelligence briefing
+  (SIGNAL / WHY / CONFIDENCE / ACTION) via DeepSeek. The model only restates
   figures present in the detection — the detection is real, the LLM explains it.
 
 ## Resilience (it doesn't fall over)
 
 Both the RPC and the LLM run behind a **retry → circuit-breaker → fallback
-chain** (3 Arbitrum endpoints; LLM: TrueFoundry 70b → 8b → raw Groq). Every run
-prints a quantitative **scorecard** (success rate, p50/p95 latency, fallback
-rate, MTTR) so the resilience is *shown*, not claimed — run `python chaos.py` to force a
-primary-provider outage and watch the chain recover (request still succeeds, fallback
-rate 100%, MTTR ~1s).
+chain** (3 Mantle endpoints; LLM: DeepSeek via DashScope). Every run prints a
+quantitative **scorecard** (success rate, p50/p95 latency, fallback rate, MTTR)
+so the resilience is *shown*, not claimed — run `python chaos.py` to force a
+primary-provider outage and watch the chain recover.
 
-## Quickstart (judges: one command)
+## Quickstart
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env        # optional: add an LLM key (GROQ_API_KEY or TFY_*).
-                            # No key? It falls back to a deterministic note.
-python sentinel.py --demo   # replays a REAL on-chain MXNB mint + relay window
-python sentinel.py --once   # one live pass over the basket
-python chaos.py             # kill the primary LLM mid-call → watch the fallback chain recover
+cp .env.example .env        # add DASHSCOPE_API_KEY (DeepSeek via DashScope)
+                            # No key? Falls back to a deterministic note.
+python sentinel.py --once   # one live pass over all three tokens
+python sentinel.py          # continuous loop (default 60s interval)
+python chaos.py             # kill the primary LLM mid-call → watch fallback recover
 ```
 
-### `--demo` output (real Arbitrum data)
+### Live output (real Mantle data)
 
 ```
-=== MXNB Treasury Sentinel · tick (DEMO) ===
-  [MXNB treasury] minted 200.00 / redeemed 0.00 / net Δ +200.00 (3 transfers)
-  ┌─ ALERT [HIGH] MXNB · large_mint
-  │ SIGNAL     — large mint of 200.00 MXNB to 0x975e20…
-  │ WHY        — Mint outpacing demand may cause peg stress.
-  │ CONFIDENCE — high signal.
-  │ ACTION     — verify reserve coverage.
-  └─ (LLM via tfy-groq-70b)
-  [USDC] …  (corridor context — counts only)
+=== Mantle Alpha Sentinel · tick @ 16:53:29 ===
+  [mETH] clean
+  [USDY] clean
+  [USDC] layering:2
 
-🛰 Resilience Scorecard — RPC 100% success, p50 279ms · LLM 100% via fallback chain
+  ┌─ ALPHA [CRITICAL] USDC · layering
+  │ SIGNAL — Layering relay chain ×3 of 74.98 USDC
+  │ WHY — Small-amount structuring through multiple hops suggests obfuscation.
+  │ CONFIDENCE — critical — structured layering chain with 3 hops.
+  │ ACTION — Flag for compliance review and monitor recipient.
+  └─ (AI via deepseek-v4-pro)
+  └─ TG: sent OK
+
+─── Resilience Scorecard ───
+  total calls   : 4
+  success rate  : 100.0%
+  user latency  : p50 94ms / p95 325ms
 ```
 
 ## How it works
 
 ```
-Arbitrum logs ──▶ ResilientRPC (retry/breaker/fallback, 3 endpoints)
+Mantle L2 logs ──▶ ResilientRPC (retry/breaker/fallback, 3 endpoints)
                        │  eth_getLogs(Transfer)
                        ▼
-   treasury.py  (MXNB: mint/redeem/supply/concentration)
-   flow_monitor.py (USD corridor: large / fan-out / layering, degree-denoised)
+   flow_monitor.py (large / fan-out / layering, hub-degree denoised)
                        │  FlowAnomaly
                        ▼
-   risk_note.py ──▶ ResilientLLM (TFY 70b → 8b → Groq)  ──▶ treasury desk note
+   risk_note.py ──▶ ResilientLLM (DeepSeek via DashScope) ──▶ alpha note
                        │
                        ▼
-   sentinel.py  (orchestrate · scorecards · Telegram-ready)
+   sentinel.py  (orchestrate · scorecards · Telegram alerts)
 ```
 
-## Honest scope
+## Token basket
 
-- **MXNB on-chain volume is currently sparse** — it's an early, growing peso
-  stablecoin (most flow is still off-chain via Juno rails). The sentinel logs
-  *every* MXNB issuance/redemption and uses the USD corridor for live-volume
-  context; `--demo` replays a real MXNB mint+relay block window so judges always
-  see the full pipeline.
-- **USD corridor signals are context, not the headline** — surfaced as counts;
-  turning them into high-precision AML signals needs contract-address labeling
-  (`eth_getCode`) and is intentionally out of scope here.
-- **Roadmap:** Telegram alert feed (wire `TG_BOT_TOKEN`), holder-concentration
-  via balance snapshots, depeg/peg-deviation feed, account-abstraction
-  session-key alert subscriptions.
+| Token | Role | Large threshold |
+|-------|------|----------------|
+| mETH | Mantle Staked Ether — LSP flagship, yield-bearing | 50 mETH |
+| USDY | Ondo U.S. Dollar Yield — RWA-backed yield token | 100,000 USDY |
+| USDC | Bridged USDC — high-volume stablecoin corridor | 250,000 USDC |
 
 ## Stack
 
-Python · Arbitrum (public RPC) · `httpx` · OpenAI-compatible LLM gateway
-(TrueFoundry / Groq). No private infra required to run the demo.
+Python · Mantle L2 (public RPC) · `httpx` · OpenAI-compatible LLM gateway
+(DeepSeek via DashScope). No private infra required.
 
 ## License
 
