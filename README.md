@@ -96,10 +96,23 @@ Mantle L2 logs ──▶ ResilientRPC (retry/breaker/fallback, 3 endpoints)
 | USDY | Ondo U.S. Dollar Yield — RWA-backed yield token | 100,000 USDY |
 | USDC | Bridged USDC — high-volume stablecoin corridor | 250,000 USDC |
 
+## On-Chain Deployment (Mantle Sepolia)
+
+| | |
+|---|---|
+| **Contract** | [`AlertRegistry`](contracts/AlertRegistry.sol) |
+| **Address** | [`0x584770DB276fe8f18516FF6bb1e85Ff12c549217`](https://sepolia.mantlescan.xyz/address/0x584770DB276fe8f18516FF6bb1e85Ff12c549217) |
+| **Network** | Mantle Sepolia Testnet (Chain ID 5003) |
+| **TX** | [`0xd238774...`](https://sepolia.mantlescan.xyz/tx/0xd2387746f5439516793a82ce3138c7418b45d7510d5ee296d18876b86d0cb039) |
+
+The `AlertRegistry` contract logs sentinel detections on-chain — each alert
+records its type, details, severity, and timestamp. Deploy your own with
+`python deploy.py`.
+
 ## Stack
 
-Python · Mantle L2 (public RPC) · `httpx` · OpenAI-compatible LLM gateway
-(DeepSeek via DashScope). No private infra required.
+Python · Solidity · Mantle L2 (public RPC) · `httpx` · OpenAI-compatible LLM
+gateway (DeepSeek via DashScope). No private infra required.
 
 ## License
 
